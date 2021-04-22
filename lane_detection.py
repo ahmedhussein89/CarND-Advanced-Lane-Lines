@@ -33,7 +33,12 @@ class Lane:
         # y values for detected line pixels
         self.ally = None
 
+        self.lane_fit = None
+
     def find_lane_pixels(self, binary_warped, x_base, out_img):
+        if(self.detected):
+            return self.search_around_poly(binary_warped)
+
         # Set height of windows - based on nwindows above and image shape
         window_height = np.int32(binary_warped.shape[0]//self.windows_count)
         # Identify the x and y positions of all nonzero pixels in the image
@@ -86,13 +91,13 @@ class Lane:
             self.ally = np.copy(self.y)
 
     def fit_polynomial(self, out_img, color):
-        lane_fit = np.polyfit(self.y, self.x, 2)
+        self.lane_fit = np.polyfit(self.y, self.x, 2)
 
         # Generate x and y values for plotting
         self.ploty = np.linspace(0, out_img.shape[0]-1, out_img.shape[0])
 
         try:
-            self.recent_xfitted = lane_fit[0]*self.ploty**2 + lane_fit[1]*self.ploty + lane_fit[2]
+            self.recent_xfitted = self.lane_fit[0]*self.ploty**2 + self.lane_fit[1]*self.ploty + self.lane_fit[2]
             self.detected = True
         except TypeError:
             # Avoids an error if `left` and `right_fit` are still none or incorrect
@@ -109,6 +114,19 @@ class Lane:
             plt.imshow(out_img)
             plt.plot(self.recent_xfitted, self.ploty, color='yellow')
             plt.show()
+
+    def search_around_poly(self, binary_warped):
+        # Grab activated pixels
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+
+        left_lane_inds = ((nonzerox > (self.lane_fit[0]*(nonzeroy**2) + self.lane_fit[1]*nonzeroy + self.lane_fit[2] - self.margin)) &
+                          (nonzerox < (self.lane_fit[0]*(nonzeroy**2) + self.lane_fit[1]*nonzeroy + self.lane_fit[2] + self.margin)))
+
+        # Again, extract left and right line pixel positions
+        leftx  = nonzerox[left_lane_inds]
+        lefty  = nonzeroy[left_lane_inds]
 
     def measure_curvature_real(self):
         '''

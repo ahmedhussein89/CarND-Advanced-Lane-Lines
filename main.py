@@ -3,6 +3,7 @@ import os
 import cv2
 import sys
 import numpy as np
+from tqdm import tqdm
 from optparse import OptionParser
 import matplotlib.pyplot as plt
 from lane_detection import Lane_Manager
@@ -32,10 +33,8 @@ def process_image(image_name, show_image=False):
     image = cv2.undistort(image, mtx, dist)
 
     height, width = image.shape[:2]
-    mask = np.zeros(image.shape)
-    mask[(height//2):, :] = 1
 
-    HLS = cv2.cvtColor(image, cv2.COLOR_RGB2HLS) * mask
+    HLS = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
 
     S_image = HLS[:, :, 2]
 
@@ -112,61 +111,62 @@ def process_image(image_name, show_image=False):
     plt.imsave("text_image_output.webp", result)
 
 def process_video(input_video, show_image=False):
+    # Read input video
     cap = cv2.VideoCapture(input_video)
+
+    # Get frames count
+    frames_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out    = cv2.VideoWriter('output.avi',fourcc, 20.0, (1280,720))
 
-    while(cap.isOpened()):
+    Description = f"Processing Video {input_video}"
+    for index in tqdm(range(int(frames_count)), desc=Description):
         ret, image = cap.read()
 
         height, width = image.shape[:2]
-        mask = np.zeros(image.shape)
-        mask[(height//2):, :] = 1
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        HLS = cv2.cvtColor(image, cv2.COLOR_RGB2HLS) * mask
 
-        S_image = HLS[:, :, 2]
-
-        if show_image:
-            plt.imshow(S_image, cmap="gray")
-            plt.show()
+        gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # Blur image to remove noise
-        blured_image = cv2.GaussianBlur(S_image, (5, 5), 0)
+        blured_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
 
         abs_x_image  = abs_sobel_thresh(blured_image, orient='x', thresh=(20, 80))
         abs_y_image  = abs_sobel_thresh(blured_image, orient='y', thresh=(20, 80))
 
+        min_value = np.pi/3
+        max_value = np.pi - np.pi/3
+        thresh=(min_value, max_value)
+        dir_binary = dir_threshold(blured_image, sobel_kernel=15, thresh=thresh)
+        mag_binary = mag_thresh(blured_image,    sobel_kernel=3,  mag_thresh=(50, 150))
+
         if show_image:
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
+            f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(24, 9))
             f.tight_layout()
             ax1.imshow(abs_x_image, cmap="gray")
             ax1.set_title('abs_x_image', fontsize=50)
             ax2.imshow(abs_y_image, cmap="gray")
             ax2.set_title('abs_y_image', fontsize=50)
+            ax3.imshow(dir_binary, cmap="gray")
+            ax3.set_title('Dir', fontsize=50)
+            ax4.imshow(mag_binary, cmap="gray")
+            ax4.set_title('Mag', fontsize=50)
             plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
             plt.show()
 
-        dir_binary = dir_threshold(S_image, sobel_kernel=15, thresh=(0.7, 1.1))
-        mag_binary = mag_thresh(S_image, sobel_kernel=3, mag_thresh=(50, 150))
+        HLS = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
 
-        if show_image:
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
-            f.tight_layout()
-            ax2.imshow(dir_binary, cmap="gray")
-            ax2.set_title('Dir', fontsize=50)
-            ax1.imshow(mag_binary, cmap="gray")
-            ax1.set_title('Mag', fontsize=50)
-            plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-            plt.show()
+        S_image = HLS[:, :, 2]
 
         # Give more weight for S Channel and less for mag&dir and less for abs
         combined_binary = np.zeros_like(S_image)
-        combined_binary[((abs_x_image == 1) & (abs_y_image == 1))] = 1
-        combined_binary[((mag_binary == 1) & (dir_binary == 1))]   = 1 # 2
-        combined_binary[(S_image > 200)]                           = 1 # 3
+        combined_binary[((abs_x_image == 1) & (abs_y_image == 1)) | ((mag_binary == 1)  & (dir_binary == 1))] = 2
+        combined_binary[
+                (((abs_x_image == 1) & (abs_y_image == 1)) | ((mag_binary == 1)  & (dir_binary == 1))) &
+                (S_image > 200)
+                ] = 1
 
         if show_image:
             norm_image = cv2.normalize(combined_binary, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
@@ -180,10 +180,23 @@ def process_video(input_video, show_image=False):
             plt.show()
 
         lane_manager  = Lane_Manager()
-        color_image = lane_manager.process(dest_image)
+        color_image, left_curvered, right_curvered, offset = lane_manager.process(dest_image)
 
         new_image = cv2.warpPerspective(color_image, inv_M, (image.shape[1], image.shape[0]))
         result = cv2.addWeighted(image, 1, new_image, 0.3, 0)
+
+        new_image = cv2.warpPerspective(lane_manager.out_img, inv_M, (image.shape[1], image.shape[0]))
+        result = cv2.addWeighted(result, 1, new_image, 0.7, 0)
+
+        left_text   = f"left_curvered = {left_curvered:.1f}"
+        right_text  = f"right_curvered = {right_curvered:.1f}"
+        offset_text = f"car offset = {offset:.3f} (m)"
+
+        result = draw_text_on_image(result, left_text,   (50, 50), (255, 255, 255))
+        result = draw_text_on_image(result, right_text,  (50, 100), (255, 255, 255))
+        result = draw_text_on_image(result, offset_text, (50, 150), (255, 255, 255))
+
+        result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
         out.write(result)
 
 if __name__ == "__main__":
@@ -197,9 +210,8 @@ if __name__ == "__main__":
 
     if(not os.path.exists(options.image)):
         print(f"Input image \"{options.image}\" not exists")
-        sys.exit(-1)
-
-    process_image(options.image, options.show)
+    else:
+        process_image(options.image, options.show)
 
     if(options.video):
         process_video(options.video, options.show)
