@@ -8,11 +8,11 @@ We need a combination of thresholding opertion to isolate the lane lines.
 2. Edge direction and magniture.
 3. using Saturation channel from `HLS` color space.
 
-![sobelxy](output_images/sobelxy.webp)
+![sobelxy](../output_images/sobelxy.webp)
 
-![sobel_mag_dir](output_images/sobel_mag_dir.webp)
+![sobel_mag_dir](../output_images/sobel_mag_dir.webp)
 
-![HLS](output_images/HLS.webp)
+![HLS](../output_images/HLS.webp)
 
-![combined](output_images/combined.webp)
+![combined](../output_images/combined.webp)
 
