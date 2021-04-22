@@ -56,9 +56,9 @@ class Lane:
             win_x_high  = x_current  + self.margin
 
             # Draw the windows on the visualization image
-            cv2.rectangle(out_img, (win_x_low,win_y_low), (win_x_high,win_y_high),(0, 255, 0), 2)
+            if False:
+                cv2.rectangle(out_img, (win_x_low,win_y_low), (win_x_high,win_y_high),(0, 255, 0), 2)
 
-            ### TO-DO: Identify the nonzero pixels in x and y within the window ###
             good_inds  = [index for index, value in enumerate(zip(nonzeroy, nonzerox)) if (value[0] < win_y_high and  value[0] >= win_y_low) and (value[1] < win_x_high  and  value[1] >= win_x_low)]
 
             lane_inds.append(good_inds)
@@ -158,15 +158,8 @@ class Lane_Manager:
         self.right_lane.fit_polynomial(out_img, [0, 0, 255])
         right_x, right_curvered = self.right_lane.measure_curvature_real()
 
-        # Compute Car Offset
-        xm_per_pix = 3.7/700 # meters per pixel in x dimension
-        center = out_img.shape[1]//2 * xm_per_pix
-
         self.out_img = out_img
         new_center = (((right_x - left_x) / 2) + left_x)
-        print(f"left_curvered = {left_curvered}")
-        print(f"right_curvered = {right_curvered}")
-        print(f"{center - new_center} = {center} - {new_center}")
 
         warp_zero  = np.zeros_like(binary_warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -179,5 +172,10 @@ class Lane_Manager:
 
         cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
-        return color_warp
+        # Compute Car Offset
+        xm_per_pix = 3.7/700 # meters per pixel in x dimension
+        center = out_img.shape[1]//2 * xm_per_pix
+
+        offset = center - new_center
+        return color_warp, left_curvered, right_curvered, offset
 
