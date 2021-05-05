@@ -40,6 +40,7 @@ def process_image(image_name, show_image=False):
 
     if show_image:
         plt.imshow(S_image, cmap="gray")
+        plt.title("S channel")
         plt.show()
 
     # Blur image to remove noise
@@ -83,6 +84,9 @@ def process_image(image_name, show_image=False):
         plt.show()
 
     dest_image, inv_M = prespective_image(combined_binary, show_image)
+
+    norm_image = cv2.normalize(dest_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    cv2.imwrite("prespective1.png", norm_image)
 
     if show_image:
         plt.imshow(dest_image, cmap="gray")

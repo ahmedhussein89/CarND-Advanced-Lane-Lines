@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 
 
 class Lane:
-    def __init__(self, windows_count = 9, margin = 100, minpix = 50):
+    def __init__(self, windows_count = 9, margin = 100, minpix = 50,
+                 color=(255, 0, 0), show_image = False):
+        self.show_image = show_image
+        self.color = color
         # HYPERPARAMETERS
         # Choose the number of sliding windows
         self.windows_count = windows_count
@@ -37,7 +40,10 @@ class Lane:
 
     def find_lane_pixels(self, binary_warped, x_base, out_img):
         if(self.detected):
-            return self.search_around_poly(binary_warped)
+            self.search_around_poly(binary_warped)
+
+        if(self.detected):
+            return
 
         # Set height of windows - based on nwindows above and image shape
         window_height = np.int32(binary_warped.shape[0]//self.windows_count)
@@ -61,8 +67,8 @@ class Lane:
             win_x_high  = x_current  + self.margin
 
             # Draw the windows on the visualization image
-            if False:
-                cv2.rectangle(out_img, (win_x_low,win_y_low), (win_x_high,win_y_high),(0, 255, 0), 2)
+            if self.show_image:
+                cv2.rectangle(out_img, (win_x_low,win_y_low), (win_x_high,win_y_high), self.color, 2)
 
             good_inds  = [index for index, value in enumerate(zip(nonzeroy, nonzerox)) if (value[0] < win_y_high and  value[0] >= win_y_low) and (value[1] < win_x_high  and  value[1] >= win_x_low)]
 
@@ -71,6 +77,10 @@ class Lane:
             # Append these indices to the lists
             if(nonzerox[good_inds].shape[0] > self.minpix):
                 x_current = int(np.mean(nonzerox[good_inds]))
+
+        if self.show_image:
+            plt.imshow(out_img)
+            plt.show()
 
         # Concatenate the arrays of indices (previously was a list of lists of pixels)
         try:
@@ -124,6 +134,10 @@ class Lane:
         left_lane_inds = ((nonzerox > (self.lane_fit[0]*(nonzeroy**2) + self.lane_fit[1]*nonzeroy + self.lane_fit[2] - self.margin)) &
                           (nonzerox < (self.lane_fit[0]*(nonzeroy**2) + self.lane_fit[1]*nonzeroy + self.lane_fit[2] + self.margin)))
 
+        if(not left_lane_inds):
+            self.detected = False
+            return
+
         # Again, extract left and right line pixel positions
         leftx  = nonzerox[left_lane_inds]
         lefty  = nonzeroy[left_lane_inds]
@@ -151,8 +165,8 @@ class Lane:
 
 class Lane_Manager:
     def __init__(self):
-        self.left_lane  = Lane()
-        self.right_lane = Lane()
+        self.left_lane  = Lane(color=(255, 0, 0))
+        self.right_lane = Lane(color=(0, 255, 0))
 
     def process(self, binary_warped):
         # Take a histogram of the bottom half of the image
@@ -169,6 +183,7 @@ class Lane_Manager:
 
         self.left_lane.find_lane_pixels(binary_warped, leftx_base,   out_img)
         self.right_lane.find_lane_pixels(binary_warped, rightx_base, out_img)
+        plt.imsave("windows.png", out_img)
 
         self.left_lane.fit_polynomial(out_img, [255, 0, 0])
         left_x, left_curvered = self.left_lane.measure_curvature_real()

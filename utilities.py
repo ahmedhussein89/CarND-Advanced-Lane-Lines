@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def prespective_image(image, show_image):
@@ -24,23 +25,20 @@ def prespective_image(image, show_image):
     inv_M = cv2.getPerspectiveTransform(dest_points,
                                         source_points)
 
-    if(show_image and False):
+    if(show_image):
         source_pts = source_points.astype(np.int32).reshape((-1, 1, 2))
         dest_pts   = dest_points.astype(np.int32).reshape((-1, 1, 2))
 
-        image2 = cv2.polylines(np.copy(image),
+        norm_image   = cv2.normalize(image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        colour_image = cv2.cvtColor(norm_image, cv2.COLOR_GRAY2RGB)
+        image2 = cv2.polylines(colour_image,
                               [source_pts],
                               True,
                               (255, 0, 0),
                               2)
 
-        image2 = cv2.polylines(image2,
-                              [dest_pts],
-                              True,
-                              (0, 0, 255),
-                              2)
-
         plt.imshow(image2)
+        plt.title("prespective")
         plt.show()
 
     return cv2.warpPerspective(image, M, (width, height)), inv_M

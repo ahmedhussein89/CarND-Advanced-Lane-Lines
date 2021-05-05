@@ -10,7 +10,6 @@
 4. [Algorithm](#algorithm)
 5. [Result](#result)
 6. [Challenges](#challenges)
-7. [Conclusion](#conclusion)
 8. [Refernces](#refernces)
 
 ---
@@ -56,6 +55,7 @@ This project is pure Python with a few depenendies
 
 
 #### 1. Compute the camera calibration matrix
+***The code can be found on `calibration.py`***
 
 In this project, we will use a pinhole camera model[4]. Although the model is simple to use It comes with industrial defects. It can be called camera distortion[5]. Camera distortion is classified into two types.
 
@@ -87,12 +87,22 @@ ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_im
 | ![undistort1](output_images/calibration1.webp) | ![undistort5](output_images/calibration5.webp) |
 
 #### 3. Binary thresholding
+***The code can be found on `binary_thresholding.py`***
 
 The code for calibration is located on `binary_thresholding.py` file.
 We need to isolate the lanes from the remaining of the image. We will use binary thresholding which means that anything passes the threshold we are set to one We need a combination of thresholding operation to isolate the lane lines.
 
 ##### Sobel[9][9]
 is edge detection algorithms where it creates an image emphasising edges. 
+
+```python
+sobel_x = cv.Sobel(input_image, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
+sobel_y = cv.Sobel(input_image, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
+```
+
+| original | sobelx | sobely |
+|:-:|:-:|:-:|
+| ![input_box](media/input_box.webp) | ![sobelx](media/sobelx.webp) | ![sobely](media/sobely.webp) |
 
 1. SobelX and SobelY
 2. Edge direction and magniture.
@@ -111,6 +121,27 @@ TThe second approach is better except starting from frame number 1036. That's wh
 I mention that again on the challenges part.
 
 #### 4. Apply a perspective transform
+***The code can be found on `utilities.py`***
+
+As shown in the next figure, I select fixed points on the input image which wrapped into the perspective view.
+
+```python
+source_points = np.array([
+    [270,  670], # Point 0
+    [575,  460], # Point 1
+    [740,  460], # Point 2
+    [1100, 670]  # Point 3
+], np.float32)
+
+dest_points = np.array([
+    [270,  670], # Point 0
+    [270,  0],   # Point 1
+    [1101, 0],   # Point 2
+    [1100, 670]  # Point 3
+], np.float32)
+
+Prespective = cv2.getPerspectiveTransform(vertices, dest)
+```
 
 | Before | After |
 |:-:|:-:|
@@ -118,17 +149,37 @@ I mention that again on the challenges part.
 
 #### 5. Detect lane pixels
 
+ In this is the section we get deeper into the detection algorithm. The detection algorithm has two states.
+***The code can be found on `lane_detection.py`***
+
+i. Not initialized or missing state
+The input image is a grey warped image. we take a histogram for the lower half of the image along the x-axis. That helps us find the estimated position of the lanes. Using the histogram peaks as shown in the next figure, we can get the x values for the left and right lanes. one step forward is to divide the image into several windows. In this project we use 
+9 windows. The window is used to estimate the number of pixels that is related to the lanes `Divide and conquer`. Iterate over windows while using the initially selected x-values to centralize the first window. using the window rectangle to select the white pixels.  After selecting the left and right pixels, we can use `polyfit` function to estimate the polyline for the left and right lanes.
+
+```python
+    lane_fit = np.polyfit(y, x, 2)
+```
+
+ii. Preinitialied
+Applying the last stages for every frame is a waste of time. The difference between frames should not be so big. We will use the last estimated lines to search for pixels on the new image. After finding the pixels for both lanes run `polyfit` function again. And use the new lines.
+
+![before](media/windows.webp)
+
 #### 6. Determine the curvature
+***The code can be found on `lane_detection.py` under `Lane_Manager`***
 
 #### 7. Warp the detected lane boundaries
-
-#### 8. Output visual display
+***The code can be found on `main.py`***
 
 ---
 
 ### Result
 
-![sobelxy](output_images/text_image_output.webp)
+![output_images](output_images/text_image_output.webp)
+
+---
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/5i0J5RlvZWk/0.jpg)](https://www.youtube.com/watch?v=5i0J5RlvZWk)
 
 ---
 
@@ -148,10 +199,6 @@ I mention that again on the challenges part.
 |:-:|:-:|:-:|:-:|:-:|
 | Normal | ![sobelxy](media/image_10.webp) | ![sobel_mag_dir](media/image_10_gray.webp) | ![HLS](media/image_10_s_channel.webp) | ![HLS](media/image_10_combined.webp)
 | Noise | ![sobelxy](media/image_1036.webp) | ![sobel_mag_dir](media/image_1036_gray.webp) | ![HLS](media/image_1036_s_channel.webp) | ![HLS](media/image_1036_combined.webp)
-
----
-
-### Conclusion
 
 ---
 
