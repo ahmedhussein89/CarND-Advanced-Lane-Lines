@@ -92,6 +92,7 @@ The code for calibration is located on `binary_thresholding.py` file.
 We need to isolate the lanes from the remaining of the image. We will use binary thresholding which means that anything passes the threshold we are set to one We need a combination of thresholding operation to isolate the lane lines.
 
 ##### Sobel[9][9]
+is edge detection algorithms where it creates an image emphasising edges. 
 
 1. SobelX and SobelY
 2. Edge direction and magniture.
@@ -110,6 +111,10 @@ TThe second approach is better except starting from frame number 1036. That's wh
 I mention that again on the challenges part.
 
 #### 4. Apply a perspective transform
+
+| Before | After |
+|:-:|:-:|
+| ![before](media/prespective0.webp) | ![after](media/prespective1.webp) |
 
 #### 5. Detect lane pixels
 
